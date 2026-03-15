@@ -28,7 +28,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
     {
       name: "analyze_repo_health",
-      description: "Calculates health metrics for a repo (stars-to-forks ratio and recent activity).",
+      description: "Calculates health metrics for a repo.",
       inputSchema: {
         type: "object",
         properties: {
@@ -37,47 +37,38 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         },
         required: ["owner", "repo"],
       },
+    },
+    {
+      name: "get_user_profile",
+      description: "Fetches GitHub profile data for a specific username.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          username: { type: "string" }
+        },
+        required: ["username"],
+      },
     }
   ],
 }));
 
-// 3. Logic Layer: Data Science Insights
+// 3. Logic Layer
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  if (request.params.name === "analyze_repo_health") {
-    // Validate arguments using Zod
-    const schema = z.object({ owner: z.string(), repo: z.string() });
-    const { owner, repo } = schema.parse(request.params.arguments);
+  const { name, arguments: args } = request.params;
 
+  if (name === "analyze_repo_health") {
+    // ... (Keep your existing repo health code here)
+  }
+
+  if (name === "get_user_profile") {
+    const { username } = z.object({ username: z.string() }).parse(args);
     try {
-      const [repoData, commits] = await Promise.all([
-        github.get(`/repos/${owner}/${repo}`),
-        github.get(`/repos/${owner}/${repo}/commits?per_page=10`)
-      ]);
-
-      const data = repoData.data;
-      
-      // Feature Engineering: Calculate custom metrics
-      const healthScore = (data.stargazers_count / (data.network_count || 1)).toFixed(2);
-      const lastCommitDate = commits.data[0]?.commit.author.date;
-
-      const analysis = {
-        name: data.full_name,
-        description: data.description,
-        metrics: {
-          stars: data.stargazers_count,
-          forks: data.network_count,
-          star_to_fork_ratio: healthScore, // Shows if users just 'like' it or actually 'use' it
-          is_active: new Date(lastCommitDate) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-        },
-        insight: `This repo has a ${healthScore} star/fork ratio. ${data.stargazers_count > 1000 ? 'High authority project.' : 'Growing project.'}`
-      };
-
-      return { content: [{ type: "text", text: JSON.stringify(analysis, null, 2) }] };
-    } catch (error) {
+      const response = await github.get(`/users/${username}`);
       return {
-        content: [{ type: "text", text: `Analysis Failed: ${error.message}` }],
-        isError: true,
+        content: [{ type: "text", text: JSON.stringify(response.data, null, 2) }]
       };
+    } catch (error) {
+      return { content: [{ type: "text", text: `User not found: ${error.message}` }], isError: true };
     }
   }
 });
