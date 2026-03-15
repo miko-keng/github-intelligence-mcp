@@ -8,6 +8,12 @@ import axios from "axios";
 const github = axios.create({
   baseURL: 'https://api.github.com',
   timeout: 5000,
+  headers: {
+    // This pulls the token from the environment variable
+    'Authorization': `token ${process.env.GITHUB_PERSONAL_ACCESS_TOKEN}`,
+    'Accept': 'application/vnd.github.v3+json',
+    'User-Agent': 'github-analyst-pro' // GitHub requires a User-Agent header
+  },
 });
 
 const server = new Server({
